@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    /* Custom font for Arabic titles */
+    @font-face {
+        font-family: 'Kanz Al Marjaan';
+        src: url('https://res.cloudinary.com/dmukvplh6/raw/upload/v1763627530/Kanz-al-Marjaan_g3jfoy.ttf') format('truetype');
+        font-weight: normal; font-style: normal; font-display: swap;
+    }
+
+    body { background: #f4f7f6; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .card { border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; margin: auto; border: none; }
+    .logo { width: 100px; display: block; margin: 0 auto 10px; }
+    
+    .kanz-header { 
+        font-family: 'Kanz Al Marjaan', serif; 
+        font-size: 3.2rem; 
+        color: #0d6efd; 
+        text-align: center; 
+        line-height: 1.1;
+        margin-bottom: 0;
+    }
+    .sub-title { text-align: center; color: #6c757d; margin-bottom: 25px; font-weight: 600; }
+
+    .action-container { display: flex; gap: 15px; margin-bottom: 1.5rem; }
+    .action-box { flex: 1; padding: 15px; border-radius: 12px; }
+    .bg-tashjee { background-color: #e8f5e9; border: 2px solid #2e7d32; }
+    .bg-tanbeeh { background-color: #ffebee; border: 2px solid #c62828; }
+    
+    .kanz-label { font-family: 'Kanz Al Marjaan', serif; font-size: 1.8rem; display: block; text-align: center; margin-bottom: 5px; line-height: 1; }
+    .text-tashjee { color: #2e7d32; }
+    .text-tanbeeh { color: #c62828; }
+
+    #previewContainer img { width: 120px; border-radius: 10px; border: 2px solid #3498db; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card p-4">
+      <img src="https://res.cloudinary.com/de0cllasz/image/upload/v1771157375/nairobi-removebg-preview_kuxmjp.png" class="logo">
+      <h1 class="kanz-header">هكذا تجتمع الحسنات</h1>
+      <div class="sub-title">Hasanaat Entry Portal</div>
+      
+      <div class="mb-3">
+        <label class="form-label fw-bold">Teacher Passcode</label>
+        <input type="password" id="passId" class="form-control" placeholder="Enter Secret ID">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-bold">Select Student</label>
+        <input list="students" id="studentInput" class="form-control" placeholder="Type ITS or Name...">
+        <datalist id="students"></datalist>
+      </div>
+
+      <div class="action-container">
+        <div class="action-box bg-tashjee">
+          <label class="kanz-label text-tashjee">تشجيع</label>
+          <select id="posSelect" class="form-select" onchange="selectAction('pos')">
+            <option value="" selected disabled>Select Positive...</option>
+          </select>
+        </div>
+        <div class="action-box bg-tanbeeh">
+          <label class="kanz-label text-tanbeeh">تنبيه</label>
+          <select id="negSelect" class="form-select" onchange="selectAction('neg')">
+            <option value="" selected disabled>Select Negative...</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="row mb-3">
+        <div class="col-8">
+          <label class="form-label small fw-bold text-muted">Selected Action</label>
+          <input type="text" id="finalAction" class="form-control bg-light" readonly>
+        </div>
+        <div class="col-4">
+          <label class="form-label small fw-bold text-muted">Points (Max 5)</label>
+          <input type="number" id="points" class="form-control" min="-5" max="5" oninput="validatePoints(this)">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-bold">Picture (Optional Evidence)</label>
+        <input type="file" id="evidencePhoto" class="form-control" accept="image/*" onchange="previewImage(this)">
+        <div id="previewContainer" class="mt-2 text-center" style="display:none;">
+          <img id="imgPreview" src="">
+          <button type="button" class="btn btn-sm btn-link text-danger d-block mx-auto mt-1" onclick="removeImage()">Remove Picture</button>
+        </div>
+      </div>
+
+      <textarea id="comments" class="form-control mb-3" placeholder="Add optional comments here..."></textarea>
+      
+      <div id="notificationToggleArea" style="display: none;" class="mt-3">
+        <div class="form-check p-3 border rounded bg-light">
+          <input class="form-check-input" type="checkbox" id="notifyParent">
+          <label class="form-check-label text-danger" for="notifyParent">
+            <b>Notify Parents Immediately?</b> (Mandatory for serious issues)
+          </label>
+        </div>
+      </div>
+
+      <div id="positiveFeedbackArea" style="display: none;" class="mt-3">
+        <div class="alert alert-success text-center">
+          ✨ <b>Positive Action:</b> Parents will be notified automatically!
+        </div>
+      </div>
+
+      <button onclick="submitForm()" id="submitBtn" class="btn btn-primary w-100 fw-bold py-2">Submit Log & Notify</button>
+      
+      <div class="text-center mt-3">
+        <a href="<?= ScriptApp.getService().getUrl() ?>?page=Portal" class="text-decoration-none small">View Student History →</a>
+      </div>
+    </div>
+  </div>
+<script>
+    /**
+     * INITIALIZATION: Load Students and Actions
+     */
+    window.onload = () => {
+      google.script.run.withSuccessHandler(list => {
+        let dl = document.getElementById('students');
+        list.forEach(s => {
+          let opt = document.createElement('option');
+          opt.value = s.its;
+          opt.setAttribute('data-hizb', s.hizb || "General"); 
+          opt.text = `${s.name} (Class: ${s.class} ${s.section})`;
+          dl.appendChild(opt);
+        });
+      }).getStudentList();
+      
+      google.script.run.withSuccessHandler(actions => {
+        let posSel = document.getElementById('posSelect');
+        let negSel = document.getElementById('negSelect');
+        actions.forEach(a => {
+          let opt = document.createElement('option');
+          opt.value = a[1]; opt.text = a[0];
+          if (Number(a[1]) >= 0) posSel.add(opt); else negSel.add(opt);
+        });
+      }).getActions();
+    };
+
+    /**
+     * UI LOGIC: Handles point calculation and visibility
+     */
+    function selectAction(type) {
+      const posSel = document.getElementById('posSelect');
+      const negSel = document.getElementById('negSelect');
+      const pointsInput = document.getElementById('points');
+      const notifyArea = document.getElementById('notificationToggleArea');
+      const positiveArea = document.getElementById('positiveFeedbackArea');
+      
+      let selectedPoints = 0;
+      let actionName = "";
+
+      if (type === 'pos') {
+        negSel.selectedIndex = 0;
+        actionName = posSel.selectedOptions[0].text;
+        selectedPoints = Number(posSel.value);
+      } else {
+        posSel.selectedIndex = 0;
+        actionName = negSel.selectedOptions[0].text;
+        selectedPoints = Number(negSel.value);
+      }
+
+      document.getElementById('finalAction').value = actionName;
+      pointsInput.value = selectedPoints;
+
+      // --- MODIFIED SECTION START ---
+      // Show the notification area for ALL actions (Positive and Negative)
+      notifyArea.style.display = "block"; 
+      
+      // Update label text based on type
+      const notifyLabel = document.querySelector('label[for="notifyParent"]');
+      if (selectedPoints > 0) {
+        notifyLabel.innerHTML = "<b>Send 'Golden Moment' Email to Parents?</b>";
+        notifyLabel.className = "form-check-label text-success";
+        document.getElementById('notifyParent').checked = true; // Default off for positive
+      } else {
+        notifyLabel.innerHTML = "<b>Notify Parents Immediately?</b> (Only mandatory for serious issues)";
+        notifyLabel.className = "form-check-label text-danger";
+        document.getElementById('notifyParent').checked = false; // Default on for negative
+      }
+
+      // Hide the old fixed positive area since we now use the checkbox
+      positiveArea.style.display = "none";
+      // --- MODIFIED SECTION END ---
+    }
+
+    function validatePoints(input) {
+      let val = Number(input.value);
+      if (val > 5) input.value = 5;
+      if (val < -5) input.value = -5;
+    }
+
+    function previewImage(input) {
+      const preview = document.getElementById('imgPreview');
+      const container = document.getElementById('previewContainer');
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          preview.src = e.target.result;
+          container.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    function removeImage() {
+      document.getElementById('evidencePhoto').value = "";
+      document.getElementById('previewContainer').style.display = 'none';
+    }
+
+    /**
+     * FORM SUBMISSION LOGIC
+     */
+    function submitForm() {
+      const btn = document.getElementById('submitBtn');
+      const its = document.getElementById('studentInput').value;
+      const action = document.getElementById('finalAction').value;
+      const fileInput = document.getElementById('evidencePhoto');
+      const passId = document.getElementById('passId').value;
+
+      if (!its || !action || !passId) { 
+        alert("Please enter Passcode, select a student and an action."); 
+        return; 
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing Submission...';
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            const dl = document.getElementById('students');
+            const option = Array.from(dl.options).find(opt => opt.value === its);
+            
+            const studentFullName = option ? option.text.split(" (")[0] : "Unknown";
+            const studentHizb = option ? option.getAttribute('data-hizb') : "General";
+            
+            let classOnly = "";
+            let section = "";
+            try {
+              classOnly = option.text.split("Class: ")[1].split(" ")[0];
+              section = option.text.split(" ").pop().replace(")", "");
+            } catch(e) { console.error("Parsing error", e); }
+
+            const logData = {
+              its: its,
+              name: studentFullName,
+              classOnly: classOnly,
+              section: section,
+              hizb: studentHizb, 
+              action: action,
+              points: document.getElementById('points').value,
+              comments: document.getElementById('comments').value,
+              teacher: res.name,
+              notifyParent: document.getElementById('notifyParent').checked,
+              photoData: null
+            };
+
+            if (fileInput.files && fileInput.files[0]) {
+              const reader = new FileReader();
+              reader.onload = function(e) {
+                logData.photoData = e.target.result;
+                saveLogToServer(logData);
+              };
+              reader.readAsDataURL(fileInput.files[0]);
+            } else {
+              saveLogToServer(logData);
+            }
+          } else {
+            alert("Invalid Teacher Passcode!");
+            resetSubmitButton();
+          }
+        })
+        .withFailureHandler(err => {
+          alert("Critical Error: " + err.message);
+          resetSubmitButton();
+        })
+        .verifyTeacher(passId);
+    }
+
+    /**
+     * FINAL DATABASE SAVE
+     */
+    function saveLogToServer(logData) {
+      google.script.run
+        .withSuccessHandler((response) => {
+          // Check if response exists and isn't an error
+          if (response && response.toString().startsWith("Error")) {
+            alert(response);
+            resetSubmitButton();
+          } else {
+            alert("✅ Success! Record & Picture Saved.");
+            // This reroutes to the entry portal by reloading the current URL
+            window.top.location.href = "<?= ScriptApp.getService().getUrl() ?>";
+          }
+        })
+        .withFailureHandler(err => {
+          alert("Submission Failed: " + err.message);
+          resetSubmitButton();
+        })
+        .submitLog(logData);
+    }
+
+    function resetSubmitButton() {
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = false;
+      btn.innerHTML = "Submit Log & Notify";
+    }
+</script>
+</body>
+</html>

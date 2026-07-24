@@ -1,0 +1,25 @@
+{
+  "timeZone": "Africa/Nairobi",
+  "dependencies": {
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "MerchantApi",
+        "serviceId": "merchantapi",
+        "version": "reviews_v1beta"
+      }
+    ]
+  },
+  "webapp": {
+    "executeAs": "USER_DEPLOYING",
+    "access": "ANYONE_ANONYMOUS"
+  },
+  "exceptionLogging": "CLOUD",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.send_mail",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email"
+  ],
+  "runtimeVersion": "V8"
+}

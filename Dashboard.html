@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    @font-face { 
+      font-family: 'Kanz Al Marjaan'; 
+      src: url('https://res.cloudinary.com/dmukvplh6/raw/upload/v1763627530/Kanz-al-Marjaan_g3jfoy.ttf') format('truetype'); 
+    }
+    
+    /* Layout Reset */
+    * { box-sizing: border-box; }
+    body, html { 
+      height: 100vh; 
+      margin: 0; 
+      background: radial-gradient(circle at center, #001f3f 0%, #000a12 100%); 
+      color: white; 
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      overflow: hidden; 
+    }
+
+    .dashboard-wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 1.5rem;
+    }
+
+    .kanz-font { font-family: 'Kanz Al Marjaan', serif; }
+    .uthmani-font { 
+      font-family: 'Amiri', serif !important; 
+      color: #82ccdd; 
+      direction: rtl; 
+      font-weight: 700;
+    }
+
+    .header-box { 
+      flex: 0 0 auto; 
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between; 
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(52, 152, 219, 0.3);
+      margin-bottom: 1rem;
+    }
+
+    #dashboardCarousel { flex: 1 1 auto; min-height: 0; }
+    .carousel-inner, .carousel-item { height: 100%; }
+
+    .slide-container { 
+      background: rgba(255,255,255,0.03); 
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px; 
+      padding: 2rem; 
+      height: 100%; 
+      display: flex; 
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .scroll-content {
+      flex: 1;
+      overflow-y: auto;
+      width: 100%;
+      padding-right: 10px;
+    }
+
+    /* Custom Scrollbar */
+    .scroll-content::-webkit-scrollbar { width: 6px; }
+    .scroll-content::-webkit-scrollbar-track { background: transparent; }
+    .scroll-content::-webkit-scrollbar-thumb { background: rgba(52, 152, 219, 0.4); border-radius: 10px; }
+
+    /* Data Presentation */
+    .leader-table { font-size: 1.5rem; vertical-align: middle; }
+    .leader-table thead { position: sticky; top: 0; background: #001529; z-index: 2; }
+    .highlight-row { background: rgba(241, 196, 15, 0.1) !important; color: #f1c40f; }
+
+    /* Uniform Grid for Toppers and Clean Sheets */
+    .data-grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+      gap: 15px; 
+      padding: 10px;
+    }
+    .data-card { 
+      background: rgba(52, 152, 219, 0.1); 
+      border: 1px solid rgba(52, 152, 219, 0.3); 
+      border-radius: 15px; 
+      padding: 15px; 
+      text-align: center;
+      transition: transform 0.2s;
+    }
+
+    .nav-btn { 
+      background: rgba(255, 255, 255, 0.1); 
+      border: 1px solid rgba(52, 152, 219, 0.5); 
+      color: #82ccdd; 
+      width: 40px; height: 40px; 
+      border-radius: 50%; 
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .nav-btn:hover { background: #3498db; color: white; transform: scale(1.1); }
+
+    .chart-container { flex: 1; min-height: 300px; position: relative; }
+
+    .hizb-row { margin-bottom: 1.5rem; }
+    .progress-bg { background: rgba(255,255,255,0.05); height: 28px; border-radius: 14px; overflow: hidden; }
+    .progress-fill { height: 100%; transition: width 1s ease-in-out; }
+  </style>
+</head>
+<body>
+
+<div class="dashboard-wrapper">
+  
+  <div class="header-box">
+    <div class="d-flex align-items-center gap-3">
+      <img src="https://res.cloudinary.com/de0cllasz/image/upload/v1767414895/MSB_logo_jvw3yw.png" style="width: 50px;">
+      <div id="lastUpdate" class="text-muted small">Syncing...</div>
+    </div>
+    
+    <div class="d-flex align-items-center gap-4">
+      <button class="nav-btn" onclick="bootstrap.Carousel.getInstance('#dashboardCarousel').prev()">&#10094;</button>
+      <h1 class="kanz-font m-0" style="font-size: 2.5rem; color: #3498db;">هكذا تجتمع الحسنات</h1>
+      <button class="nav-btn" onclick="bootstrap.Carousel.getInstance('#dashboardCarousel').next()">&#10095;</button>
+    </div>
+
+    <div class="text-end">
+      <span class="badge bg-primary px-3 py-2">School Discipline Dashboard</span>
+    </div>
+  </div>
+
+  <div id="dashboardCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="12000" data-bs-pause="false">
+    <div class="carousel-inner">
+      
+      <div class="carousel-item active">
+        <div class="slide-container">
+          <div class="uthmani-font text-center mb-2" style="font-size: 1.8rem;">﴿وَفِي ذَٰلِكَ فَلْيَتَنَافَسِ الْمُتَنَافِسُونَ﴾</div>
+          <h2 class="text-center text-info mb-4">مَيْدَانُ الْمُسَابَقَةِ</h2>
+          <div class="row h-100 g-4">
+            <div class="col-6 d-flex flex-column">
+              <h5 class="text-center text-success">Tashjee (Merits)</h5>
+              <div class="chart-container"><canvas id="tashjeeChart"></canvas></div>
+            </div>
+            <div class="col-6 d-flex flex-column">
+              <h5 class="text-center text-danger">Tanbeeh (Demerits)</h5>
+              <div class="chart-container"><canvas id="tanbeehChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="carousel-item">
+        <div class="slide-container">
+          <div class="uthmani-font text-center mb-2" style="font-size: 1.8rem;">﴿وَتَعَاوَنُوا عَلَى الْبِرِّ وَالتَّقْوَىٰ﴾</div>
+          <h2 class="text-center text-info mb-4">تَنَافُسُ الْأَحْزَابِ</h2>
+          <div class="scroll-content" id="hizbStatsContainer"></div>
+        </div>
+      </div>
+
+      <div class="carousel-item">
+        <div class="slide-container">
+          <div class="uthmani-font text-center mb-2" style="font-size: 1.8rem;">﴿لِّلَّذِينَ أَحْسَنُوا الْحُسْنَىٰ وَزِيَادَةٌ﴾</div>
+          <h2 class="text-center text-warning mb-4">أَهْلُ الْحَسَنَاتِ (Overall Leaders)</h2>
+          <div class="scroll-content">
+            <table class="table leader-table text-white">
+              <thead>
+                <tr><th>Rank</th><th>Name</th><th class="text-end">Points</th></tr>
+              </thead>
+              <tbody id="topOverallBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="carousel-item">
+        <div class="slide-container">
+          <div class="uthmani-font text-center mb-2" style="font-size: 1.8rem;">﴿إِنَّ لِلْمُتَّقِينَ مَفَازًا﴾</div>
+          <h2 class="text-center text-info mb-4">الْمُتَّقُونَ (30-Day Shield)</h2>
+          <div class="scroll-content">
+            <div class="data-grid" id="cleanSheetList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="carousel-item">
+        <div class="slide-container">
+          <div class="uthmani-font text-center mb-2" style="font-size: 1.8rem;">أَوَّلُ مَا يُوضَعُ فِي الْمِيزَانِ الْخُلُقُ الْحَسَنُ</div>
+          <h2 class="text-center text-success mb-4">النَّجْمُ فِي دَرَجَتِهِ</h2>
+          <div class="scroll-content">
+            <div class="data-grid" id="classToppersGrid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="carousel-item">
+        <div class="slide-container justify-content-center">
+          <div class="text-center">
+            <div class="uthmani-font mb-3" style="font-size: 2.5rem;">﴿وَالسَّابِقُونَ السَّابِقُونَ﴾</div>
+            <h2 class="kanz-font text-warning" style="font-size: 4rem;">الْفَائِزُونَ</h2>
+            <div id="weeklyWinner" class="kanz-font" style="font-size: 8rem; color: #f1c40f; text-shadow: 0 0 40px rgba(241,196,15,0.6);">--</div>
+            <h4 class="text-info mt-3">Current Leading Hizb</h4>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+    let charts = {};
+
+    function updateDashboard() {
+      google.script.run.withSuccessHandler(data => {
+        const opt = { 
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false, 
+          plugins: { legend: { display: false } },
+          scales: { 
+            x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#aaa' } }, 
+            y: { ticks: { color: '#fff', font: { size: 12 } } } 
+          } 
+        };
+        if (!charts.t) {
+          charts.t = new Chart(document.getElementById('tashjeeChart'), { type: 'bar', data: { labels: data.labels, datasets: [{ data: data.tashjee, backgroundColor: '#2ecc71' }] }, options: opt });
+          charts.n = new Chart(document.getElementById('tanbeehChart'), { type: 'bar', data: { labels: data.labels, datasets: [{ data: data.tanbeeh, backgroundColor: '#e74c3c' }] }, options: opt });
+        } else {
+          charts.t.data.labels = data.labels; charts.t.data.datasets[0].data = data.tashjee;
+          charts.n.data.labels = data.labels; charts.n.data.datasets[0].data = data.tanbeeh;
+          charts.t.update(); charts.n.update();
+        }
+      }).getDashboardData();
+
+      google.script.run.withSuccessHandler(res => {
+        if (res.hizbStats) {
+          const maxPts = Math.max(...res.hizbStats.map(h => h.points), 1); 
+          document.getElementById('hizbStatsContainer').innerHTML = res.hizbStats.map((h, i) => `
+            <div class="hizb-row">
+              <div class="d-flex justify-content-between mb-1">
+                <span style="font-size:1.2rem">${i===0?'👑 ':''}${h.name}</span>
+                <span class="text-info">${h.points} Pts</span>
+              </div>
+              <div class="progress-bg">
+                <div class="progress-fill" style="width: ${(h.points/maxPts)*100}%; background: ${i===0?'linear-gradient(90deg, #f1c40f, #f39c12)':'linear-gradient(90deg, #3498db, #82ccdd)'};"></div>
+              </div>
+            </div>`).join('');
+        }
+
+        document.getElementById('topOverallBody').innerHTML = res.topOverall.map((s,i) => `
+          <tr class="${i<3?'highlight-row':''}">
+            <td>#${i+1}</td>
+            <td>${s.name}</td>
+            <td class="text-end font-monospace">${s.totalPos}</td>
+          </tr>`).join('');
+        
+        // REVAMPED Clean Sheets Grid
+        document.getElementById('cleanSheetList').innerHTML = res.cleanSheets.map(s => `
+          <div class="data-card" style="border-color: #3498db; background: rgba(52,152,219,0.05);">
+            <div style="font-size: 2rem; margin-bottom: 5px;">🛡️</div>
+            <div class="kanz-font" style="font-size: 1.3rem;">${s.name}</div>
+            <div class="text-info small">Al-Muttaqun</div>
+          </div>`).join('');
+        
+        document.getElementById('classToppersGrid').innerHTML = res.classToppers.map(t => `
+          <div class="data-card">
+            <div class="small text-info opacity-75">${t.className}</div>
+            <div class="kanz-font my-2" style="font-size:1.4rem">${t.name}</div>
+            <div class="text-success fw-bold">${t.pts} pts</div>
+          </div>`).join('');
+        
+        document.getElementById('weeklyWinner').innerText = res.weeklyClassWinner;
+        document.getElementById('lastUpdate').innerText = "Last Sync: " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      }).getQuranicDashboardData();
+    }
+
+    window.onload = () => {
+      updateDashboard();
+      setInterval(updateDashboard, 300000); 
+    };
+  </script>
+</body>
+</html>
