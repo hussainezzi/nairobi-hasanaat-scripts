@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Portal - Hasanaat</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    @font-face {
+      font-family: 'Kanz Al Marjaan';
+      src: url('https://res.cloudinary.com/dmukvplh6/raw/upload/v1763627530/Kanz-al-Marjaan_g3jfoy.ttf') format('truetype');
+    }
+    body { background: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #001f3f; padding: 20px 10px; }
+    .app-card { background: #ffffff; border-radius: 20px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,31,63,0.05); max-width: 800px; margin: auto; padding: 25px; }
+    .logo { width: 80px; display: block; margin: 0 auto 10px; }
+    .kanz-header { font-family: 'Kanz Al Marjaan', serif; font-size: 2.8rem; color: #001f3f; text-align: center; margin-bottom: 0; }
+    .sub-title { text-align: center; color: #64748b; margin-bottom: 25px; font-weight: 600; }
+    
+    .status-btn-group .btn { font-size: 0.85rem; padding: 6px 12px; font-weight: 600; border-radius: 8px; }
+    .btn-present { background-color: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .btn-present.active { background-color: #22c55e !important; color: white !important; }
+    
+    .btn-late { background-color: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+    .btn-late.active { background-color: #eab308 !important; color: white !important; }
+    
+    .btn-absent { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .btn-absent.active { background-color: #ef4444 !important; color: white !important; }
+    
+    .btn-excused { background-color: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; }
+    .btn-excused.active { background-color: #0284c7 !important; color: white !important; }
+
+    .student-row { border-bottom: 1px solid #f1f5f9; padding: 12px 0; display: flex; align-items: center; justify-content: space-between; }
+    .student-info { flex: 1; }
+    .student-name { font-weight: 700; font-size: 1.05rem; color: #001f3f; }
+    .student-meta { font-size: 0.82rem; color: #64748b; }
+  </style>
+</head>
+<body>
+
+  <div class="app-card">
+    <img src="https://res.cloudinary.com/de0cllasz/image/upload/v1771157375/nairobi-removebg-preview_kuxmjp.png" class="logo">
+    <h1 class="kanz-header">تسجيل الحضور والغياب</h1>
+    <div class="sub-title">Firebase Realtime Attendance Engine</div>
+
+    <!-- Step 1: Authentication & Selection -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Teacher Passcode</label>
+        <input type="password" id="teacherPass" class="form-control" placeholder="Secret ID">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Session</label>
+        <select id="sessionSelect" class="form-select fw-bold text-primary">
+          <option value="Morning Assembly" selected>🌅 Morning Assembly</option>
+          <option value="Post-Namaz">🕌 Post-Namaz (Masjid Return)</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Select Date</label>
+        <input type="date" id="attDate" class="form-control">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">Class & Section</label>
+        <select id="classSelect" class="form-select" onchange="loadClassRoster()">
+          <option value="" disabled selected>Choose Class...</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Actions & Roster -->
+    <div id="rosterArea" style="display: none;">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold m-0" style="color: #001f3f;">Class Student Roster</h5>
+        <div>
+          <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="setAllStatus('Present')">✓ Mark All Present</button>
+        </div>
+      </div>
+
+      <div id="studentListContainer"></div>
+
+      <button id="submitBtn" onclick="submitAttendanceData()" class="btn btn-primary w-100 py-3 fw-bold mt-4" style="background-color: #001f3f; border: none; font-size: 1.1rem;">
+        🚀 Save Attendance to Firebase & Sync Points
+      </button>
+    </div>
+
+    <div class="text-center mt-4">
+      <a href="<?= ScriptApp.getService().getUrl() ?>?page=Index" class="text-decoration-none small me-3">← Back to Hasanaat Entry</a>
+      <a href="<?= ScriptApp.getService().getUrl() ?>?page=Dashboard" class="text-decoration-none small">View Dashboard →</a>
+    </div>
+  </div>
+
+  <script>
+    let allStudents = [];
+    let rosterState = {};
+
+    window.onload = () => {
+      // Set default date to today YYYY-MM-DD
+      document.getElementById('attDate').value = new Date().toISOString().split('T')[0];
+
+      // Fetch student roster to extract unique class list
+      google.script.run.withSuccessHandler(students => {
+        allStudents = students;
+        let classes = [...new Set(students.map(s => `${s.class} ${s.section}`).filter(Boolean))].sort();
+        let sel = document.getElementById('classSelect');
+        classes.forEach(c => {
+          let opt = document.createElement('option');
+          opt.value = c; opt.text = c;
+          sel.add(opt);
+        });
+      }).getStudentList();
+    };
+
+    function loadClassRoster() {
+      const selectedClass = document.getElementById('classSelect').value;
+      if (!selectedClass) return;
+
+      const container = document.getElementById('studentListContainer');
+      container.innerHTML = '';
+      rosterState = {};
+
+      const classStudents = allStudents.filter(s => `${s.class} ${s.section}` === selectedClass);
+
+      if (classStudents.length === 0) {
+        container.innerHTML = '<div class="alert alert-warning text-center">No students found for this class.</div>';
+        return;
+      }
+
+      classStudents.forEach(s => {
+        rosterState[s.its] = { ...s, status: 'Present', comments: '' };
+
+        let row = document.createElement('div');
+        row.className = 'student-row';
+        row.innerHTML = `
+          <div class="student-info">
+            <div class="student-name">${s.name}</div>
+            <div class="student-meta">ITS: ${s.its} | Hizb: ${s.hizb || 'General'}</div>
+          </div>
+          <div class="status-btn-group btn-group" role="group">
+            <button type="button" class="btn btn-present active" onclick="setStatus('${s.its}', 'Present', this)">Present</button>
+            <button type="button" class="btn btn-late" onclick="setStatus('${s.its}', 'Late', this)">Late (-1pt)</button>
+            <button type="button" class="btn btn-absent" onclick="setStatus('${s.its}', 'Absent', this)">Absent (-2pt)</button>
+            <button type="button" class="btn btn-excused" onclick="setStatus('${s.its}', 'Excused', this)">Excused</button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      document.getElementById('rosterArea').style.display = 'block';
+    }
+
+    function setStatus(its, status, btnEl) {
+      if (rosterState[its]) rosterState[its].status = status;
+      let btnGroup = btnEl.parentElement;
+      Array.from(btnGroup.children).forEach(b => b.classList.remove('active'));
+      btnEl.classList.add('active');
+    }
+
+    function setAllStatus(status) {
+      Object.keys(rosterState).forEach(its => {
+        rosterState[its].status = status;
+      });
+      document.querySelectorAll('.student-row').forEach(row => {
+        let btns = row.querySelectorAll('.btn');
+        btns.forEach(b => b.classList.remove('active'));
+        let target = Array.from(btns).find(b => b.innerText.includes(status));
+        if (target) target.classList.add('active');
+      });
+    }
+
+    function submitAttendanceData() {
+      const passId = document.getElementById('teacherPass').value.trim();
+      const dateVal = document.getElementById('attDate').value;
+      const classKey = document.getElementById('classSelect').value;
+      const sessionVal = document.getElementById('sessionSelect').value;
+
+      if (!passId) { alert("Please enter your Teacher Passcode."); return; }
+      if (!classKey) { alert("Please select a class."); return; }
+
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = "⏳ Saving [" + sessionVal + "] Attendance to Firebase...";
+
+      google.script.run.withSuccessHandler(authRes => {
+        if (!authRes.success) {
+          alert("Invalid Teacher Passcode!");
+          submitBtn.disabled = false;
+          submitBtn.innerText = "🚀 Save Attendance to Firebase & Sync Points";
+          return;
+        }
+
+        let records = Object.values(rosterState);
+        let payload = {
+          session: sessionVal,
+          date: dateVal,
+          classKey: classKey,
+          teacher: authRes.name,
+          records: records
+        };
+
+        google.script.run.withSuccessHandler(res => {
+          submitBtn.disabled = false;
+          submitBtn.innerText = "🚀 Save Attendance to Firebase & Sync Points";
+          if (res.success) {
+            alert("✅ " + res.message);
+          } else {
+            alert("❌ Failed to save: " + res.message);
+          }
+        }).submitAttendance(payload);
+
+      }).verifyTeacher(passId);
+    }
+  </script>
+</body>
+</html>
