@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Manager - Hasanaat</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    @font-face {
+      font-family: 'Kanz Al Marjaan';
+      src: url('https://res.cloudinary.com/dmukvplh6/raw/upload/v1763627530/Kanz-al-Marjaan_g3jfoy.ttf') format('truetype');
+    }
+    body { background: #f0f4f8; font-family: 'Segoe UI', sans-serif; color: #001f3f; padding: 20px 10px; }
+    .app-card { background: #fff; border-radius: 20px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,31,63,0.07); max-width: 860px; margin: auto; padding: 28px; }
+    .logo { width: 70px; display: block; margin: 0 auto 8px; }
+    .kanz-header { font-family: 'Kanz Al Marjaan', serif; font-size: 2.4rem; color: #001f3f; text-align: center; }
+    .sub-title { text-align: center; color: #64748b; margin-bottom: 22px; font-weight: 600; font-size: 0.95rem; }
+
+    /* Tabs */
+    .tab-switcher { display: flex; gap: 8px; margin-bottom: 20px; }
+    .tab-btn { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #e2e8f0; background: #f8fafc; font-weight: 700; cursor: pointer; transition: all .2s; font-size: 0.9rem; }
+    .tab-btn.active { background: #001f3f; color: #fff; border-color: #001f3f; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Status buttons */
+    .status-btn-group .btn { font-size: 0.82rem; padding: 5px 10px; font-weight: 600; border-radius: 7px; }
+    .btn-present { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .btn-present.active { background: #22c55e !important; color: #fff !important; }
+    .btn-late { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+    .btn-late.active { background: #eab308 !important; color: #fff !important; }
+    .btn-absent { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .btn-absent.active { background: #ef4444 !important; color: #fff !important; }
+    .btn-excused { background: #e0f2fe; color: #075985; border: 1px solid #7dd3fc; }
+    .btn-excused.active { background: #0284c7 !important; color: #fff !important; }
+
+    .student-row { border-bottom: 1px solid #f1f5f9; padding: 11px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .student-name { font-weight: 700; font-size: 1rem; }
+    .student-meta { font-size: 0.8rem; color: #64748b; }
+
+    /* Danger zone */
+    .danger-card { border: 2px dashed #fca5a5; border-radius: 14px; padding: 20px; background: #fff5f5; }
+    .spinner { width: 18px; height: 18px; border: 3px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .changed-badge { font-size: 0.72rem; font-weight: 700; background: #fef9c3; color: #854d0e; border-radius: 6px; padding: 2px 7px; margin-left: 6px; }
+    .toast-box { position: fixed; bottom: 24px; right: 24px; z-index: 9999; min-width: 260px; }
+  </style>
+</head>
+<body>
+<div class="app-card">
+  <img src="https://res.cloudinary.com/de0cllasz/image/upload/v1771157375/nairobi-removebg-preview_kuxmjp.png" class="logo">
+  <h1 class="kanz-header">مدير الحضور</h1>
+  <div class="sub-title">Attendance Manager — Edit or Delete Submitted Sessions</div>
+
+  <!-- Auth Row -->
+  <div class="row g-2 mb-3">
+    <div class="col-md-4">
+      <label class="form-label fw-bold small">Teacher Passcode</label>
+      <input type="password" id="teacherPass" class="form-control" placeholder="Your secret passcode">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label fw-bold small">Date</label>
+      <input type="date" id="attDate" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label fw-bold small">Session</label>
+      <select id="sessionSelect" class="form-select">
+        <option value="Morning Assembly">🌅 Morning Assembly</option>
+        <option value="Post-Namaz">🕌 Post-Namaz (Masjid Return)</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label fw-bold small">Class</label>
+      <select id="classSelect" class="form-select">
+        <option value="" disabled selected>Class...</option>
+      </select>
+    </div>
+  </div>
+
+  <button id="loadBtn" class="btn w-100 fw-bold mb-4" style="background:#001f3f;color:#fff;border-radius:10px;" onclick="loadSession()">
+    🔍 Load Session
+  </button>
+
+  <!-- Tabs -->
+  <div id="managerArea" style="display:none;">
+    <div class="tab-switcher">
+      <button class="tab-btn active" onclick="switchTab('edit')">✏️ Edit Attendance</button>
+      <button class="tab-btn" onclick="switchTab('delete')">🗑️ Delete Session</button>
+    </div>
+
+    <!-- EDIT TAB -->
+    <div id="tab-edit" class="tab-panel active">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-bold text-secondary small" id="sessionMeta"></span>
+        <span id="changedCount" class="badge bg-warning text-dark" style="display:none;"></span>
+      </div>
+      <div id="editRoster"></div>
+      <button id="saveBtn" class="btn w-100 fw-bold py-3 mt-3" style="background:#001f3f;color:#fff;border-radius:12px;font-size:1.05rem;" onclick="saveChanges()">
+        💾 Save Changes & Sync Points
+      </button>
+    </div>
+
+    <!-- DELETE TAB -->
+    <div id="tab-delete" class="tab-panel">
+      <div class="danger-card text-center">
+        <div style="font-size:2.5rem;">⚠️</div>
+        <h5 class="fw-bold text-danger mt-2">Delete Entire Session</h5>
+        <p class="text-secondary mb-1">This will permanently delete the session from Firebase<br>and <strong>reverse all discipline points</strong> that were auto-logged for Late/Absent students.</p>
+        <div id="deleteSummary" class="my-3"></div>
+        <button id="deleteBtn" class="btn btn-danger fw-bold px-5" onclick="confirmDelete()">
+          🗑️ Yes, Delete This Session
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center mt-4">
+    <a href="<?= ScriptApp.getService().getUrl() ?>?page=Attendance" class="text-decoration-none small me-3">← Take Attendance</a>
+    <a href="<?= ScriptApp.getService().getUrl() ?>?page=Dashboard" class="text-decoration-none small">View Dashboard →</a>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-box" id="toastBox"></div>
+
+<script>
+  let allStudents = [];
+  let currentRecords = {};  // its → { ...student, status }
+  let originalStatuses = {}; // its → original status from Firebase
+
+  window.onload = () => {
+    document.getElementById('attDate').value = new Date().toISOString().split('T')[0];
+    google.script.run.withSuccessHandler(students => {
+      allStudents = students;
+      let classes = [...new Set(students.map(s => `${s.class} ${s.section}`).filter(Boolean))].sort();
+      let sel = document.getElementById('classSelect');
+      classes.forEach(c => {
+        let opt = document.createElement('option');
+        opt.value = c; opt.text = c; sel.add(opt);
+      });
+    }).getStudentList();
+  };
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (i === 0 && tab === 'edit') || (i === 1 && tab === 'delete')));
+    document.getElementById('tab-edit').classList.toggle('active', tab === 'edit');
+    document.getElementById('tab-delete').classList.toggle('active', tab === 'delete');
+  }
+
+  function loadSession() {
+    const pass = document.getElementById('teacherPass').value.trim();
+    const date = document.getElementById('attDate').value;
+    const session = document.getElementById('sessionSelect').value;
+    const classKey = document.getElementById('classSelect').value;
+
+    if (!pass) { showToast('Please enter your Teacher Passcode.', 'danger'); return; }
+    if (!classKey) { showToast('Please select a class.', 'danger'); return; }
+
+    const btn = document.getElementById('loadBtn');
+    btn.innerHTML = '<span class="spinner"></span> Loading...';
+    btn.disabled = true;
+
+    google.script.run.withSuccessHandler(authRes => {
+      if (!authRes.success) {
+        showToast('Invalid Teacher Passcode!', 'danger');
+        btn.innerHTML = '🔍 Load Session'; btn.disabled = false; return;
+      }
+      window._teacher = authRes.name;
+
+      google.script.run.withSuccessHandler(sessionData => {
+        btn.innerHTML = '🔍 Load Session'; btn.disabled = false;
+
+        if (!sessionData || !sessionData.records || sessionData.records.length === 0) {
+          showToast('No attendance record found for this date/session/class.', 'warning');
+          document.getElementById('managerArea').style.display = 'none';
+          return;
+        }
+
+        renderEditRoster(sessionData, classKey, session, date);
+        renderDeleteSummary(sessionData, session, date, classKey);
+        document.getElementById('managerArea').style.display = 'block';
+      }).getSessionAttendance(date, session, classKey);
+
+    }).verifyTeacher(pass);
+  }
+
+  function renderEditRoster(sessionData, classKey, session, date) {
+    currentRecords = {};
+    originalStatuses = {};
+    const container = document.getElementById('editRoster');
+    container.innerHTML = '';
+
+    document.getElementById('sessionMeta').innerHTML =
+      `📅 ${date} &nbsp;|&nbsp; 🕐 ${session} &nbsp;|&nbsp; 👥 ${sessionData.records.length} students &nbsp;|&nbsp; 👨‍🏫 Submitted by: <strong>${sessionData.teacher}</strong>`;
+
+    sessionData.records.forEach(rec => {
+      currentRecords[rec.its] = { ...rec };
+      originalStatuses[rec.its] = rec.status;
+
+      const row = document.createElement('div');
+      row.className = 'student-row';
+      row.id = `row-${rec.its}`;
+      row.innerHTML = `
+        <div>
+          <div class="student-name">${rec.name} <span id="badge-${rec.its}"></span></div>
+          <div class="student-meta">ITS: ${rec.its}</div>
+        </div>
+        <div class="status-btn-group btn-group" role="group">
+          <button type="button" class="btn btn-present ${rec.status === 'Present' ? 'active' : ''}" onclick="setStatus('${rec.its}', 'Present', this)">Present</button>
+          <button type="button" class="btn btn-late ${rec.status === 'Late' ? 'active' : ''}" onclick="setStatus('${rec.its}', 'Late', this)">Late (-1pt)</button>
+          <button type="button" class="btn btn-absent ${rec.status === 'Absent' ? 'active' : ''}" onclick="setStatus('${rec.its}', 'Absent', this)">Absent (-2pt)</button>
+          <button type="button" class="btn btn-excused ${rec.status === 'Excused' ? 'active' : ''}" onclick="setStatus('${rec.its}', 'Excused', this)">Excused</button>
+        </div>`;
+      container.appendChild(row);
+    });
+    updateChangedCount();
+  }
+
+  function renderDeleteSummary(sessionData, session, date, classKey) {
+    const absents = sessionData.records.filter(r => r.status === 'Absent').length;
+    const lates = sessionData.records.filter(r => r.status === 'Late').length;
+    document.getElementById('deleteSummary').innerHTML = `
+      <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <span class="badge bg-secondary px-3 py-2">📅 ${date}</span>
+        <span class="badge bg-dark px-3 py-2">🕐 ${session}</span>
+        <span class="badge bg-primary px-3 py-2">👥 ${sessionData.records.length} students</span>
+        <span class="badge bg-danger px-3 py-2">❌ ${absents} Absent (will reverse ${absents * 2} pts)</span>
+        <span class="badge bg-warning text-dark px-3 py-2">⏰ ${lates} Late (will reverse ${lates} pts)</span>
+      </div>`;
+    window._deletePayload = { date, session, classKey };
+  }
+
+  function setStatus(its, status, btnEl) {
+    currentRecords[its].status = status;
+    const group = btnEl.parentElement;
+    Array.from(group.children).forEach(b => b.classList.remove('active'));
+    btnEl.classList.add('active');
+    updateChangedCount();
+
+    const badge = document.getElementById(`badge-${its}`);
+    if (status !== originalStatuses[its]) {
+      badge.innerHTML = `<span class="changed-badge">Changed</span>`;
+    } else {
+      badge.innerHTML = '';
+    }
+  }
+
+  function updateChangedCount() {
+    const changed = Object.keys(currentRecords).filter(its => currentRecords[its].status !== originalStatuses[its]).length;
+    const el = document.getElementById('changedCount');
+    if (changed > 0) {
+      el.style.display = 'inline'; el.textContent = `${changed} change${changed > 1 ? 's' : ''}`;
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  function saveChanges() {
+    const changed = Object.keys(currentRecords).filter(its => currentRecords[its].status !== originalStatuses[its]);
+    if (changed.length === 0) { showToast('No changes detected.', 'warning'); return; }
+
+    const btn = document.getElementById('saveBtn');
+    btn.innerHTML = `<span class="spinner"></span> Saving ${changed.length} change(s)...`;
+    btn.disabled = true;
+
+    const payload = {
+      date: document.getElementById('attDate').value,
+      session: document.getElementById('sessionSelect').value,
+      classKey: document.getElementById('classSelect').value,
+      teacher: window._teacher,
+      records: Object.values(currentRecords)
+    };
+
+    google.script.run.withSuccessHandler(res => {
+      btn.innerHTML = '💾 Save Changes & Sync Points'; btn.disabled = false;
+      if (res.success) {
+        showToast('✅ ' + res.message, 'success');
+        // Update original statuses to reflect saved state
+        Object.keys(currentRecords).forEach(its => { originalStatuses[its] = currentRecords[its].status; });
+        document.querySelectorAll('.changed-badge').forEach(b => b.remove());
+        updateChangedCount();
+      } else {
+        showToast('❌ ' + res.message, 'danger');
+      }
+    }).updateAttendance(payload);
+  }
+
+  function confirmDelete() {
+    if (!confirm('Are you sure? This will delete the session from Firebase and reverse all discipline points. This cannot be undone.')) return;
+    const btn = document.getElementById('deleteBtn');
+    btn.innerHTML = '<span class="spinner"></span> Deleting...'; btn.disabled = true;
+
+    const p = window._deletePayload;
+    google.script.run.withSuccessHandler(res => {
+      btn.innerHTML = '🗑️ Yes, Delete This Session'; btn.disabled = false;
+      if (res.success) {
+        showToast('✅ ' + res.message, 'success');
+        document.getElementById('managerArea').style.display = 'none';
+      } else {
+        showToast('❌ ' + res.message, 'danger');
+      }
+    }).deleteSession(p.date, p.session, p.classKey);
+  }
+
+  function showToast(msg, type) {
+    const box = document.getElementById('toastBox');
+    const id = 'toast-' + Date.now();
+    const colors = { success: '#22c55e', danger: '#ef4444', warning: '#eab308' };
+    box.innerHTML += `<div id="${id}" style="background:${colors[type]||'#333'};color:#fff;padding:14px 18px;border-radius:12px;margin-top:8px;font-weight:600;box-shadow:0 4px 15px rgba(0,0,0,0.2);animation:fadeIn .3s;">${msg}</div>`;
+    setTimeout(() => { const el = document.getElementById(id); if (el) el.remove(); }, 4000);
+  }
+</script>
+</body>
+</html>

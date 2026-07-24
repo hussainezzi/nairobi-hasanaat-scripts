@@ -562,6 +562,279 @@ function forceAuth() {
   DriveApp.getFolderById(PICTURE_FOLDER_ID);
 }
 
+/**
+ * 12. FIREBASE REALTIME DATABASE & ATTENDANCE ENGINE
+ */
+const FIREBASE_URL = "https://nairobi-hasanaat-default-rtdb.firebaseio.com/";
+const FIREBASE_SECRET = "qxwSsvV4O17a0RuUn3wV3NTBBlUu67FAV95MiLg6";
+
+/**
+ * REST Helper to communicate directly with Firebase Realtime Database
+ */
+function firebaseRest(path, method, payload) {
+  var url = FIREBASE_URL + path + ".json?auth=" + FIREBASE_SECRET;
+  var options = {
+    method: method || 'get',
+    contentType: 'application/json',
+    muteHttpExceptions: true
+  };
+  if (payload) {
+    options.payload = JSON.stringify(payload);
+  }
+  var res = UrlFetchApp.fetch(url, options);
+  return JSON.parse(res.getContentText());
+}
+
+/**
+ * SUBMIT CLASS ATTENDANCE TO FIREBASE (Dual Session: Morning Assembly & Post-Namaz)
+ * Writes to Firebase & automatically logs Hasanaat discipline points for Late/Absent.
+ */
+function submitAttendance(data) {
+  try {
+    if (!data || !data.date || !data.classKey || !data.records || !data.session) {
+      return { success: false, message: "Invalid payload: Session, Date, Class, and Records are required." };
+    }
+
+    var dateClean = data.date;
+    var sessionKey = data.session.replace(/[^a-zA-Z0-9]/g, "_"); // "Morning_Assembly" or "Post_Namaz"
+    var safeClassKey = data.classKey.replace(/[.#$/\[\]]/g, "_");
+
+    // 1. Write batch attendance to Firebase under /attendance/{dateClean}/{sessionKey}/{safeClassKey}
+    var firebasePayload = {
+      teacher: data.teacher,
+      session: data.session,
+      timestamp: new Date().toISOString(),
+      records: data.records
+    };
+
+    firebaseRest("attendance/" + dateClean + "/" + sessionKey + "/" + safeClassKey, "put", firebasePayload);
+
+    // 2. Write individual student attendance index under /students_attendance/{its}/{dateClean}/{sessionKey}
+    data.records.forEach(function(rec) {
+      if (rec.its) {
+        var studentIndex = {
+          date: dateClean,
+          session: data.session,
+          status: rec.status,
+          class: rec.class + " " + rec.section,
+          teacher: data.teacher,
+          comments: rec.comments || ""
+        };
+        firebaseRest("students_attendance/" + rec.its + "/" + dateClean + "/" + sessionKey, "put", studentIndex);
+
+        // 3. AUTOMATIC HASANAAT DISCIPLINE POINTS INTEGRATION
+        // Late = -1 Point (Tanbeeh), Absent = -2 Points (Tanbeeh)
+        if (rec.status === "Late" || rec.status === "Absent") {
+          var pts = rec.status === "Late" ? -1 : -2;
+          var sessionLabel = data.session === "Post-Namaz" ? "Post-Namaz" : "Morning Assembly";
+          var actionName = rec.status === "Late" ? "Late Arrival (" + sessionLabel + ")" : "Unexcused Absence (" + sessionLabel + ")";
+          
+          submitLog({
+            its: rec.its,
+            name: rec.name,
+            classOnly: rec.class,
+            section: rec.section,
+            hizb: rec.hizb || "General",
+            action: actionName,
+            points: pts,
+            teacher: data.teacher,
+            comments: "Auto-logged from [" + data.session + "] Firebase Attendance",
+            notifyParent: rec.status === "Absent"
+          });
+        }
+      }
+    });
+
+    return { success: true, message: "[" + data.session + "] Attendance saved to Firebase & Hasanaat points updated!" };
+  } catch (e) {
+    Logger.log("Error in submitAttendance: " + e.toString());
+    return { success: false, message: e.toString() };
+  }
+}
+
+/**
+ * FETCH CLASS ATTENDANCE FROM FIREBASE
+ */
+function getClassAttendance(date, classKey) {
+  var safeClassKey = classKey.replace(/[.#$/\[\]]/g, "_");
+  return firebaseRest("attendance/" + date + "/" + safeClassKey, "get");
+}
+
+/**
+ * FETCH STUDENT ATTENDANCE HISTORY FROM FIREBASE
+ */
+function getStudentAttendance(its) {
+  return firebaseRest("students_attendance/" + its, "get");
+}
+
+/**
+ * 13. ATTENDANCE MANAGER — FETCH, UPDATE & DELETE
+ */
+
+/**
+ * Fetch an existing session's attendance from Firebase so it can be edited.
+ * Returns the records array or null if not found.
+ */
+function getSessionAttendance(date, sessionKey, classKey) {
+  var safeClass = classKey.replace(/[.#$\/\[\]]/g, "_");
+  var safeSession = sessionKey.replace(/[^a-zA-Z0-9]/g, "_");
+  var result = firebaseRest("attendance/" + date + "/" + safeSession + "/" + safeClass, "get");
+  return result; // { teacher, session, timestamp, records: [...] }
+}
+
+/**
+ * Update (overwrite) a session attendance in Firebase AND fix Google Sheets discipline points.
+ * For each student whose status changed:
+ *   - If old status was Late/Absent → delete that row from Sheets Logs
+ *   - If new status is Late/Absent  → log a new discipline point entry
+ * Firebase record is always fully replaced.
+ */
+function updateAttendance(data) {
+  try {
+    var date = data.date;
+    var safeSession = data.session.replace(/[^a-zA-Z0-9]/g, "_");
+    var safeClass = data.classKey.replace(/[.#$\/\[\]]/g, "_");
+    var sessionLabel = data.session;
+
+    // 1. Fetch old records from Firebase before overwriting
+    var old = firebaseRest("attendance/" + date + "/" + safeSession + "/" + safeClass, "get");
+    var oldRecords = (old && old.records) ? old.records : [];
+
+    // Build lookup: its → old status
+    var oldStatusMap = {};
+    oldRecords.forEach(function(r) {
+      if (r.its) oldStatusMap[r.its.toString()] = r.status;
+    });
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var logSheet = ss.getSheetByName("Logs");
+
+    // 2. Process each student in the new submission
+    data.records.forEach(function(rec) {
+      var its = rec.its ? rec.its.toString() : null;
+      if (!its) return;
+
+      var oldStatus = oldStatusMap[its] || "Present";
+      var newStatus = rec.status;
+
+      // If status changed and old status was a penalty → delete that Sheets row
+      if (oldStatus !== newStatus && (oldStatus === "Late" || oldStatus === "Absent")) {
+        var oldAction = oldStatus === "Late"
+          ? "Late Arrival (" + sessionLabel + ")"
+          : "Unexcused Absence (" + sessionLabel + ")";
+        deleteLogRow(logSheet, its, date, oldAction);
+      }
+
+      // Update individual Firebase node
+      var studentIndex = {
+        date: date,
+        session: data.session,
+        status: newStatus,
+        class: (rec.class || "") + " " + (rec.section || ""),
+        teacher: data.teacher,
+        comments: rec.comments || ""
+      };
+      firebaseRest("students_attendance/" + its + "/" + date + "/" + safeSession, "put", studentIndex);
+
+      // If new status is a penalty AND it wasn't already that → log it in Sheets
+      if (newStatus !== oldStatus && (newStatus === "Late" || newStatus === "Absent")) {
+        var pts = newStatus === "Late" ? -1 : -2;
+        var actionName = newStatus === "Late"
+          ? "Late Arrival (" + sessionLabel + ")"
+          : "Unexcused Absence (" + sessionLabel + ")";
+        submitLog({
+          its: rec.its,
+          name: rec.name,
+          classOnly: rec.class,
+          section: rec.section,
+          hizb: rec.hizb || "General",
+          action: actionName,
+          points: pts,
+          teacher: data.teacher,
+          comments: "Corrected via Attendance Manager",
+          notifyParent: newStatus === "Absent"
+        });
+      }
+    });
+
+    // 3. Overwrite the full class-level Firebase record
+    var firebasePayload = {
+      teacher: data.teacher,
+      session: data.session,
+      timestamp: new Date().toISOString(),
+      lastEditedBy: data.teacher,
+      records: data.records
+    };
+    firebaseRest("attendance/" + date + "/" + safeSession + "/" + safeClass, "put", firebasePayload);
+
+    return { success: true, message: "Attendance updated successfully. Discipline points corrected." };
+  } catch(e) {
+    Logger.log("updateAttendance error: " + e.toString());
+    return { success: false, message: e.toString() };
+  }
+}
+
+/**
+ * Delete an entire session from Firebase and reverse all auto-logged discipline points in Sheets.
+ */
+function deleteSession(date, sessionKey, classKey) {
+  try {
+    var safeSession = sessionKey.replace(/[^a-zA-Z0-9]/g, "_");
+    var safeClass = classKey.replace(/[.#$\/\[\]]/g, "_");
+    var sessionLabel = sessionKey;
+
+    // 1. Fetch existing records before deleting
+    var old = firebaseRest("attendance/" + date + "/" + safeSession + "/" + safeClass, "get");
+    var oldRecords = (old && old.records) ? old.records : [];
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var logSheet = ss.getSheetByName("Logs");
+
+    // 2. Reverse any discipline points for Late/Absent from this session
+    oldRecords.forEach(function(rec) {
+      var its = rec.its ? rec.its.toString() : null;
+      if (!its) return;
+      if (rec.status === "Late" || rec.status === "Absent") {
+        var actionName = rec.status === "Late"
+          ? "Late Arrival (" + sessionLabel + ")"
+          : "Unexcused Absence (" + sessionLabel + ")";
+        deleteLogRow(logSheet, its, date, actionName);
+      }
+      // Delete individual student attendance node
+      firebaseRest("students_attendance/" + its + "/" + date + "/" + safeSession, "delete");
+    });
+
+    // 3. Delete class-level Firebase node
+    firebaseRest("attendance/" + date + "/" + safeSession + "/" + safeClass, "delete");
+
+    return { success: true, message: "Session deleted. All discipline points reversed." };
+  } catch(e) {
+    Logger.log("deleteSession error: " + e.toString());
+    return { success: false, message: e.toString() };
+  }
+}
+
+/**
+ * Helper: Remove a specific discipline point row from the Logs sheet.
+ * Matches by ITS + action name + date (same calendar day).
+ */
+function deleteLogRow(logSheet, its, dateStr, actionName) {
+  var data = logSheet.getDataRange().getValues();
+  var targetDate = new Date(dateStr).toDateString();
+  // Scan bottom-up so row deletion doesn't shift indices
+  for (var i = data.length - 1; i >= 1; i--) {
+    var rowDate = new Date(data[i][0]).toDateString();
+    var rowIts  = data[i][1] ? data[i][1].toString() : "";
+    var rowAction = data[i][6] ? data[i][6].toString().trim() : "";
+    if (rowDate === targetDate && rowIts === its && rowAction === actionName) {
+      logSheet.deleteRow(i + 1); // Sheets rows are 1-indexed
+      return; // Only delete the first match
+    }
+  }
+}
+
+
+
 
 
 
