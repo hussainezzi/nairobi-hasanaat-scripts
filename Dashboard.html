@@ -18,8 +18,8 @@
     body, html { 
       height: 100vh; 
       margin: 0; 
-      background: radial-gradient(circle at center, #001f3f 0%, #000a12 100%); 
-      color: white; 
+      background: #ffffff; 
+      color: #001f3f; 
       font-family: 'Segoe UI', system-ui, sans-serif;
       overflow: hidden; 
     }
@@ -29,12 +29,13 @@
       flex-direction: column;
       height: 100vh;
       padding: 1.5rem;
+      background: #ffffff;
     }
 
     .kanz-font { font-family: 'Kanz Al Marjaan', serif; }
     .uthmani-font { 
       font-family: 'Amiri', serif !important; 
-      color: #82ccdd; 
+      color: #001f3f; 
       direction: rtl; 
       font-weight: 700;
     }
@@ -45,7 +46,7 @@
       align-items: center; 
       justify-content: space-between; 
       padding-bottom: 1rem;
-      border-bottom: 1px solid rgba(52, 152, 219, 0.3);
+      border-bottom: 2px solid #e2e8f0;
       margin-bottom: 1rem;
     }
 
@@ -53,15 +54,15 @@
     .carousel-inner, .carousel-item { height: 100%; }
 
     .slide-container { 
-      background: rgba(255,255,255,0.03); 
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.1);
+      background: #f8fafc; 
+      border: 1px solid #e2e8f0;
       border-radius: 24px; 
       padding: 2rem; 
       height: 100%; 
       display: flex; 
       flex-direction: column;
       overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0, 31, 63, 0.05);
     }
 
     .scroll-content {
@@ -74,12 +75,12 @@
     /* Custom Scrollbar */
     .scroll-content::-webkit-scrollbar { width: 6px; }
     .scroll-content::-webkit-scrollbar-track { background: transparent; }
-    .scroll-content::-webkit-scrollbar-thumb { background: rgba(52, 152, 219, 0.4); border-radius: 10px; }
+    .scroll-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 
     /* Data Presentation */
-    .leader-table { font-size: 1.5rem; vertical-align: middle; }
-    .leader-table thead { position: sticky; top: 0; background: #001529; z-index: 2; }
-    .highlight-row { background: rgba(241, 196, 15, 0.1) !important; color: #f1c40f; }
+    .leader-table { font-size: 1.5rem; vertical-align: middle; color: #001f3f; }
+    .leader-table thead { position: sticky; top: 0; background: #001f3f; color: #ffffff; z-index: 2; }
+    .highlight-row { background: #fef9c3 !important; color: #854d0e; font-weight: bold; }
 
     /* Uniform Grid for Toppers and Clean Sheets */
     .data-grid { 
@@ -89,31 +90,36 @@
       padding: 10px;
     }
     .data-card { 
-      background: rgba(52, 152, 219, 0.1); 
-      border: 1px solid rgba(52, 152, 219, 0.3); 
+      background: #ffffff; 
+      border: 1px solid #cbd5e1; 
       border-radius: 15px; 
       padding: 15px; 
       text-align: center;
+      color: #001f3f;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
       transition: transform 0.2s;
     }
 
     .nav-btn { 
-      background: rgba(255, 255, 255, 0.1); 
-      border: 1px solid rgba(52, 152, 219, 0.5); 
-      color: #82ccdd; 
+      background: #f1f5f9; 
+      border: 1px solid #cbd5e1; 
+      color: #001f3f; 
       width: 40px; height: 40px; 
       border-radius: 50%; 
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
       transition: 0.3s;
+      font-weight: bold;
     }
-    .nav-btn:hover { background: #3498db; color: white; transform: scale(1.1); }
+    .nav-btn:hover { background: #001f3f; color: white; transform: scale(1.1); }
 
     .chart-container { flex: 1; min-height: 300px; position: relative; }
 
     .hizb-row { margin-bottom: 1.5rem; }
-    .progress-bg { background: rgba(255,255,255,0.05); height: 28px; border-radius: 14px; overflow: hidden; }
+    .progress-bg { background: #e2e8f0; height: 28px; border-radius: 14px; overflow: hidden; }
     .progress-fill { height: 100%; transition: width 1s ease-in-out; }
+    
+    .text-navy { color: #001f3f !important; }
   </style>
 </head>
 <body>
@@ -128,12 +134,12 @@
     
     <div class="d-flex align-items-center gap-4">
       <button class="nav-btn" onclick="bootstrap.Carousel.getInstance('#dashboardCarousel').prev()">&#10094;</button>
-      <h1 class="kanz-font m-0" style="font-size: 2.5rem; color: #3498db;">هكذا تجتمع الحسنات</h1>
+      <h1 class="kanz-font m-0" style="font-size: 2.5rem; color: #001f3f;">هكذا تجتمع الحسنات</h1>
       <button class="nav-btn" onclick="bootstrap.Carousel.getInstance('#dashboardCarousel').next()">&#10095;</button>
     </div>
 
     <div class="text-end">
-      <span class="badge bg-primary px-3 py-2">School Discipline Dashboard</span>
+      <span class="badge bg-primary px-3 py-2" style="background-color: #001f3f !important;">School Discipline Dashboard</span>
     </div>
   </div>
 
@@ -143,7 +149,7 @@
       <div class="carousel-item active">
         <div class="slide-container">
           <div class="uthmani-font text-center mb-2" style="font-size: 1.8rem;">﴿وَفِي ذَٰلِكَ فَلْيَتَنَافَسِ الْمُتَنَافِسُونَ﴾</div>
-          <h2 class="text-center text-info mb-4">مَيْدَانُ الْمُسَابَقَةِ</h2>
+          <h2 class="text-center text-navy mb-4">مَيْدَانُ الْمُسَابَقَةِ</h2>
           <div class="row h-100 g-4">
             <div class="col-6 d-flex flex-column">
               <h5 class="text-center text-success">Tashjee (Merits)</h5>
@@ -160,7 +166,7 @@
       <div class="carousel-item">
         <div class="slide-container">
           <div class="uthmani-font text-center mb-2" style="font-size: 1.8rem;">﴿وَتَعَاوَنُوا عَلَى الْبِرِّ وَالتَّقْوَىٰ﴾</div>
-          <h2 class="text-center text-info mb-4">تَنَافُسُ الْأَحْزَابِ</h2>
+          <h2 class="text-center text-navy mb-4">تَنَافُسُ الْأَحْزَابِ</h2>
           <div class="scroll-content" id="hizbStatsContainer"></div>
         </div>
       </div>
@@ -168,9 +174,9 @@
       <div class="carousel-item">
         <div class="slide-container">
           <div class="uthmani-font text-center mb-2" style="font-size: 1.8rem;">﴿لِّلَّذِينَ أَحْسَنُوا الْحُسْنَىٰ وَزِيَادَةٌ﴾</div>
-          <h2 class="text-center text-warning mb-4">أَهْلُ الْحَسَنَاتِ (Overall Leaders)</h2>
+          <h2 class="text-center text-navy mb-4">أَهْلُ الْحَسَنَاتِ (Overall Leaders)</h2>
           <div class="scroll-content">
-            <table class="table leader-table text-white">
+            <table class="table leader-table">
               <thead>
                 <tr><th>Rank</th><th>Name</th><th class="text-end">Points</th></tr>
               </thead>
@@ -183,7 +189,7 @@
       <div class="carousel-item">
         <div class="slide-container">
           <div class="uthmani-font text-center mb-2" style="font-size: 1.8rem;">﴿إِنَّ لِلْمُتَّقِينَ مَفَازًا﴾</div>
-          <h2 class="text-center text-info mb-4">الْمُتَّقُونَ (30-Day Shield)</h2>
+          <h2 class="text-center text-navy mb-4">الْمُتَّقُونَ (30-Day Shield)</h2>
           <div class="scroll-content">
             <div class="data-grid" id="cleanSheetList"></div>
           </div>
@@ -204,9 +210,9 @@
         <div class="slide-container justify-content-center">
           <div class="text-center">
             <div class="uthmani-font mb-3" style="font-size: 2.5rem;">﴿وَالسَّابِقُونَ السَّابِقُونَ﴾</div>
-            <h2 class="kanz-font text-warning" style="font-size: 4rem;">الْفَائِزُونَ</h2>
-            <div id="weeklyWinner" class="kanz-font" style="font-size: 8rem; color: #f1c40f; text-shadow: 0 0 40px rgba(241,196,15,0.6);">--</div>
-            <h4 class="text-info mt-3">Current Leading Hizb</h4>
+            <h2 class="kanz-font text-navy" style="font-size: 4rem;">الْفَائِزُونَ</h2>
+            <div id="weeklyWinner" class="kanz-font" style="font-size: 8rem; color: #001f3f; text-shadow: 0 0 20px rgba(0,31,63,0.2);">--</div>
+            <h4 class="text-navy mt-3">Current Leading Hizb</h4>
           </div>
         </div>
       </div>
@@ -224,13 +230,13 @@
           indexAxis: 'y', responsive: true, maintainAspectRatio: false, 
           plugins: { legend: { display: false } },
           scales: { 
-            x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#aaa' } }, 
-            y: { ticks: { color: '#fff', font: { size: 12 } } } 
+            x: { grid: { color: 'rgba(0,0,0,0.06)' }, ticks: { color: '#475569' } }, 
+            y: { ticks: { color: '#001f3f', font: { size: 12, weight: 'bold' } } } 
           } 
         };
         if (!charts.t) {
-          charts.t = new Chart(document.getElementById('tashjeeChart'), { type: 'bar', data: { labels: data.labels, datasets: [{ data: data.tashjee, backgroundColor: '#2ecc71' }] }, options: opt });
-          charts.n = new Chart(document.getElementById('tanbeehChart'), { type: 'bar', data: { labels: data.labels, datasets: [{ data: data.tanbeeh, backgroundColor: '#e74c3c' }] }, options: opt });
+          charts.t = new Chart(document.getElementById('tashjeeChart'), { type: 'bar', data: { labels: data.labels, datasets: [{ data: data.tashjee, backgroundColor: '#16a34a' }] }, options: opt });
+          charts.n = new Chart(document.getElementById('tanbeehChart'), { type: 'bar', data: { labels: data.labels, datasets: [{ data: data.tanbeeh, backgroundColor: '#dc2626' }] }, options: opt });
         } else {
           charts.t.data.labels = data.labels; charts.t.data.datasets[0].data = data.tashjee;
           charts.n.data.labels = data.labels; charts.n.data.datasets[0].data = data.tanbeeh;
@@ -244,34 +250,34 @@
           document.getElementById('hizbStatsContainer').innerHTML = res.hizbStats.map((h, i) => `
             <div class="hizb-row">
               <div class="d-flex justify-content-between mb-1">
-                <span style="font-size:1.2rem">${i===0?'👑 ':''}${h.name}</span>
-                <span class="text-info">${h.points} Pts</span>
+                <span style="font-size:1.2rem; font-weight: 600; color: #001f3f;">${i===0?'👑 ':''}${h.name}</span>
+                <span class="text-navy fw-bold">${h.points} Pts</span>
               </div>
               <div class="progress-bg">
-                <div class="progress-fill" style="width: ${(h.points/maxPts)*100}%; background: ${i===0?'linear-gradient(90deg, #f1c40f, #f39c12)':'linear-gradient(90deg, #3498db, #82ccdd)'};"></div>
+                <div class="progress-fill" style="width: ${(h.points/maxPts)*100}%; background: ${i===0?'linear-gradient(90deg, #d97706, #f59e0b)':'linear-gradient(90deg, #001f3f, #0284c7)'};"></div>
               </div>
             </div>`).join('');
         }
 
         document.getElementById('topOverallBody').innerHTML = res.topOverall.map((s,i) => `
           <tr class="${i<3?'highlight-row':''}">
-            <td>#${i+1}</td>
-            <td>${s.name}</td>
-            <td class="text-end font-monospace">${s.totalPos}</td>
+            <td class="fw-bold">#${i+1}</td>
+            <td class="fw-semibold" style="color: #001f3f;">${s.name}</td>
+            <td class="text-end font-monospace fw-bold" style="color: #001f3f;">${s.totalPos}</td>
           </tr>`).join('');
         
         // REVAMPED Clean Sheets Grid
         document.getElementById('cleanSheetList').innerHTML = res.cleanSheets.map(s => `
-          <div class="data-card" style="border-color: #3498db; background: rgba(52,152,219,0.05);">
+          <div class="data-card">
             <div style="font-size: 2rem; margin-bottom: 5px;">🛡️</div>
-            <div class="kanz-font" style="font-size: 1.3rem;">${s.name}</div>
-            <div class="text-info small">Al-Muttaqun</div>
+            <div class="kanz-font" style="font-size: 1.3rem; color: #001f3f;">${s.name}</div>
+            <div class="text-navy small fw-bold">Al-Muttaqun</div>
           </div>`).join('');
         
         document.getElementById('classToppersGrid').innerHTML = res.classToppers.map(t => `
           <div class="data-card">
-            <div class="small text-info opacity-75">${t.className}</div>
-            <div class="kanz-font my-2" style="font-size:1.4rem">${t.name}</div>
+            <div class="small text-muted fw-bold">${t.className}</div>
+            <div class="kanz-font my-2" style="font-size:1.4rem; color: #001f3f;">${t.name}</div>
             <div class="text-success fw-bold">${t.pts} pts</div>
           </div>`).join('');
         
