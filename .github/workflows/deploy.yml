@@ -35,3 +35,6 @@ jobs:
       - name: Deploy via Clasp
         run: |
           npx @google/clasp push --force
+          # Also update the live web app deployment so the URL reflects latest code
+          DEPLOY_ID="${DEPLOYMENT_ID:-AKfycbyYQ4SHD_3RUKJwZ5sMtLz0mtsVuLpP_J3UIDyVt9QqddMr6lDZDdNxNs-IznUI0Jsh}"
+          npx @google/clasp deploy --deploymentId "$DEPLOY_ID" --description "Auto-deployed from GitHub Actions"
