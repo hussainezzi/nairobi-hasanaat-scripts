@@ -127,6 +127,131 @@ function submitLog(logData) {
 }
 
 /**
+ * 3.5 BATCH DATA SUBMISSION (Multiple students for a single action)
+ */
+function submitBatchLogs(batchPayload) {
+  try {
+    var students = batchPayload.students; // array of {its, name, classOnly, section, hizb}
+    var commonData = batchPayload.common; // {action, points, teacher, comments, notifyParent, photoData}
+
+    if (!students || students.length === 0) {
+      return "Error: No students selected.";
+    }
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var logSheet = ss.getSheetByName("Logs");
+    var studentSheet = ss.getSheetByName("Students");
+
+    // Upload picture ONCE if provided
+    var photoUrl = "";
+    if (commonData.photoData) {
+      photoUrl = uploadEvidence(commonData.photoData, {
+        its: "Batch",
+        name: students.length + "_Students",
+        points: commonData.points,
+        action: commonData.action
+      });
+    }
+
+    var logs = logSheet.getDataRange().getValues();
+    var todayStr = new Date().toDateString();
+    var studentData = studentSheet.getDataRange().getValues();
+
+    var successCount = 0;
+    var skippedNames = [];
+
+    students.forEach(function(st) {
+      // Duplicate check
+      var alreadyExists = logs.some(r => {
+        var rowDate = new Date(r[0]).toDateString();
+        return rowDate === todayStr && 
+               r[1].toString() === st.its.toString() && 
+               r[6].toString().trim() === commonData.action.toString().trim();
+      });
+
+      if (alreadyExists) {
+        skippedNames.push(st.name);
+        return;
+      }
+
+      var points = Number(commonData.points);
+      var shouldNotifyParent = false;
+
+      if (commonData.notifyParent) {
+        shouldNotifyParent = true;
+      } else if (points < 0) {
+        var strikeCount = logs.filter(r => 
+          r[1].toString() === st.its.toString() && 
+          r[6].toString().trim() === commonData.action.toString().trim() && 
+          Number(r[7]) < 0
+        ).length;
+        if (strikeCount >= 2) shouldNotifyParent = true;
+      }
+
+      // Append row
+      logSheet.appendRow([
+        new Date(), 
+        st.its, 
+        st.name, 
+        st.classOnly, 
+        st.section, 
+        st.hizb || "General", 
+        commonData.action, 
+        points, 
+        commonData.teacher, 
+        commonData.comments || "", 
+        photoUrl || ""
+      ]);
+
+      successCount++;
+
+      // Email dispatch
+      var stRecord = studentData.find(r => r[1].toString() === st.its.toString());
+      if (stRecord) {
+        var recipients = [
+          { email: stRecord[8] ? stRecord[8].toString().trim() : "", role: 'parent' },
+          { email: stRecord[9] ? stRecord[9].toString().trim() : "", role: 'teacher' },
+          { email: stRecord[10] ? stRecord[10].toString().trim() : "", role: 'hos' },
+          { email: stRecord[11] ? stRecord[11].toString().trim() : "", role: 'masool' },
+          { email: stRecord[12] ? stRecord[12].toString().trim() : "", role: 'musaid' }
+        ];
+
+        var logObj = {
+          its: st.its,
+          name: st.name,
+          classOnly: st.classOnly,
+          section: st.section,
+          hizb: st.hizb || "General",
+          action: commonData.action,
+          points: points,
+          teacher: commonData.teacher,
+          comments: commonData.comments || ""
+        };
+
+        recipients.forEach(recp => {
+          if (recp.email && recp.email.indexOf('@') > -1) {
+            if (recp.role !== 'parent' || shouldNotifyParent) {
+              sendCustomizedEmail(recp.email, recp.role, logObj);
+            }
+          }
+        });
+      }
+    });
+
+    var msg = "Success! Recorded entry for " + successCount + " student(s).";
+    if (skippedNames.length > 0) {
+      msg += " Skipped (already recorded today): " + skippedNames.join(", ");
+    }
+    return msg;
+
+  } catch(e) {
+    Logger.log("submitBatchLogs error: " + e.toString());
+    return "Error: " + e.toString();
+  }
+}
+
+
+/**
  * 4. EMAIL GENERATOR (Mimicking your original style)
  */
 function sendCustomizedEmail(toEmail, role, data) {
